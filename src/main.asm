@@ -1,69 +1,79 @@
 global main
 extern CreateToolhelp32Snapshot
-extern Process32First
-extern Process32Next
+extern Process32FirstW
+extern Process32NextW
 extern CloseHandle
-extern printf_s
+extern wprintf
 
 SECTION .data
 TH32CS_SNAPPROCESS equ 0x00000002
+INVALID_HANDLE_VALUE equ -1
 MAX_PATH equ 260
 
-fmt db "%s", 10, 0      ; "%s\n" for printf_s
+fmt dw 'P','I','D',':',' ','%','8','u',' ','-',' ','%','l','s',10,0  ; Wide string format
 
-; PROCESSENTRY32 structure
-; dwSize, cntUsage, th32ProcessID, th32DefaultHeapID, th32ModuleID
-; cntThreads, th32ParentProcessID, pcPriClassBase, dwFlags, szExeFile[260]
-PROCESSENTRY32:
-    dd 0                 ; dwSize
-    dd 0                 ; cntUsage
-    dd 0                 ; th32ProcessID
-    dq 0                 ; th32DefaultHeapID
-    dd 0                 ; th32ModuleID
-    dd 0                 ; cntThreads
-    dd 0                 ; th32ParentProcessID
-    dd 0                 ; pcPriClassBase
-    dd 0                 ; dwFlags
-    times MAX_PATH db 0  ; szExeFile[260]
+align 16
+pe32:
+    .dwSize:            dd 0
+    .cntUsage:          dd 0
+    .th32ProcessID:     dd 0
+    .th32DefaultHeapID: dq 0
+    .th32ModuleID:      dd 0
+    .cntThreads:        dd 0
+    .th32ParentProcessID: dd 0
+    .pcPriClassBase:    dd 0
+    .dwFlags:           dd 0
+    .szExeFile:         times MAX_PATH dw 0
 
 SECTION .text
 main:
+    push rbx
+    push rsi
     sub rsp, 40
 
-    mov rcx, TH32CS_SNAPPROCESS ; dwFlags
-    xor rdx, rdx                ; th32ProcessID = 0 (all processes)
+    ; Create snapshot
+    mov ecx, TH32CS_SNAPPROCESS
+    xor edx, edx
     call CreateToolhelp32Snapshot
-    mov rbx, rax                ; save snapshot handle
+    cmp rax, INVALID_HANDLE_VALUE
+    je .error
+    
+    mov rbx, rax
+    lea rsi, [rel pe32]
+    mov dword [rsi], 568
 
-    lea rcx, [rel PROCESSENTRY32]
-    mov dword [rcx], 568        ; sizeof(PROCESSENTRY32) = 568 bytes on x64
-
-    lea rcx, [rel PROCESSENTRY32]
-    mov rdx, rbx                 ; snapshot handle
-    call Process32First
-    test rax, rax
-    jz .done                     ; no processes
+    ; Process32FirstW
+    mov rcx, rbx
+    mov rdx, rsi
+    call Process32FirstW
+    test eax, eax
+    jz .cleanup
 
 .loop:
-
-    mov rax, rsp
-    and rsp, -16
-    sub rsp, 40
     lea rcx, [rel fmt]
-    lea rdx, [rel PROCESSENTRY32 + 44]
-    call printf_s
-    mov rsp, rax
+    mov edx, [rsi + 8]   ; PID
+    lea r8, [rsi + 44]   ; szExeFile
+    call wprintf
 
-    lea rcx, [rel PROCESSENTRY32]
-    mov rdx, rbx
-    call Process32Next
-    test rax, rax
+    ; Process32NextW
+    mov rcx, rbx
+    mov rdx, rsi
+    call Process32NextW
+    test eax, eax
     jnz .loop
 
-.done:
+.cleanup:
     mov rcx, rbx
     call CloseHandle
-
-    add rsp, 40
     xor eax, eax
+    add rsp, 40
+    pop rsi
+    pop rbx
+    ret
+
+.error:
+    mov eax, 1
+    add rsp, 40
+    pop rsi
+    pop rbx
     ret
