@@ -1,2 +1,10 @@
-./build.ps1
-./bin/main.exe
+param (
+    [Parameter(Mandatory=$true)]
+    [string]$AsmFile
+)
+
+$ErrorActionPreference = 'Stop'
+
+$ExeFile = ./build.ps1 $AsmFile
+Write-Host $ExeFile
+& $ExeFile

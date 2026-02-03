@@ -6,7 +6,9 @@
             "request": "launch",
             "name": "Run",
             "script": "${workspaceFolder}/run.ps1",
-            "args": [],
+            "args": [
+                "${file}"
+            ],
             "cwd": "${workspaceFolder}"
         }
     ]
