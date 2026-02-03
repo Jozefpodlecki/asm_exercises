@@ -29,19 +29,26 @@ if (Test-Path $dir) {
 }
 
 nasm -f win64 $AsmFile -o $ObjFile
-link $ObjFile `
-    /SUBSYSTEM:CONSOLE `
-    /DEFAULTLIB:"$umPath\kernel32.Lib" `
-    /DEFAULTLIB:"$libPath\msvcrt.lib" `
-    "$libPath\legacy_stdio_definitions.lib" `
-    "$libPath\legacy_stdio_wide_specifiers.lib" `
-    "$ucrtPath\ucrt.lib" `
-    /ENTRY:main `
-    /NOLOGO `
-    /merge:.CRT=.rdata `
-    /OUT:$ExeFile
+$cmdArgs = @(
+    $ObjFile
+    "/SUBSYSTEM:CONSOLE"
+    "/ENTRY:main"
+    "/NOLOGO"
+    "/VERBOSE"
+    "/merge:.CRT=.rdata"
+    "/OUT:$ExeFile"
+    "$umPath\kernel32.lib"
+    "$umPath\ws2_32.lib"
+)
 
-if ($LASTEXITCODE -ne 0) { throw "LINK failed" }
+Write-Host $cmd
+$linkOutput = & link.exe $cmdArgs 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "LINK output:"
+    $linkOutput | ForEach-Object { Write-Host $_ }
+    throw "LINK failed"
+}
 
 Write-Output $ExeFile
 # /OPT:REF `

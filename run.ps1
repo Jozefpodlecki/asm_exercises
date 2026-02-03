@@ -6,5 +6,4 @@ param (
 $ErrorActionPreference = 'Stop'
 
 $ExeFile = ./build.ps1 $AsmFile
-Write-Host $ExeFile
 & $ExeFile
